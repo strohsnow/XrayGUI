@@ -2,14 +2,20 @@ import os
 import subprocess
 
 
-def install_service(nssm_path: str, service_name: str, exe_path: str) -> None:
+def install_service(
+    nssm_path: str, service_name: str, exe_path: str, args: list[str] | None = None
+) -> None:
     if not os.path.isfile(nssm_path):
         raise FileNotFoundError(f"NSSM not found at '{nssm_path}'")
     if not os.path.isfile(exe_path):
         raise FileNotFoundError(f"Executable not found at '{exe_path}'")
 
+    cmd = [nssm_path, "install", service_name, exe_path]
+    if args:
+        cmd.extend(args)
+
     subprocess.run(
-        [nssm_path, "install", service_name, exe_path],
+        cmd,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=True,

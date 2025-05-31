@@ -162,7 +162,10 @@ class MainWindow(QWidget):
         try:
             firewall.add_rule(config.FIREWALL_RULE, config.XRAY_EXE)
             nssm.install_service(
-                config.NSSM_EXE, config.XRAY_SERVICE, config.XRAY_EXE
+                config.NSSM_EXE,
+                config.XRAY_SERVICE,
+                config.XRAY_EXE,
+                ["-c", config.CONFIG_JSON],
             )
             nssm.start_service(config.NSSM_EXE, config.XRAY_SERVICE)
         except Exception as e:
