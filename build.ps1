@@ -1,3 +1,1 @@
-Remove-Item -Path "XrayGUI.exe"
-python -m nuitka --onefile --windows-uac-admin --windows-console-mode=disable --enable-plugin=pyside6 --windows-icon-from-ico=assets\icon.png --company-name=StrohSnow --product-name=XrayGUI --file-version=1.0 --product-version=1.0 --file-description=XrayGUI src\app.py
-Rename-Item -Path "app.exe" -NewName "XrayGUI.exe"
+pyinstaller --onefile --windowed --uac-admin --icon=assets\icon.png --add-data="assets\icon.png;assets" --name=XrayGUI --clean src\app.py
