@@ -2,6 +2,7 @@ import json
 import os
 import sys
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -20,10 +21,17 @@ import subscription
 import winproxy
 
 
+def resource_path(relative_path: str) -> str:
+    if getattr(sys, "_MEIPASS", False):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
+
+
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.setWindowIcon(QIcon(resource_path("assets/icon.png")))
         self.setWindowTitle("XrayGUI")
         self.setFixedSize(220, 150)
 
