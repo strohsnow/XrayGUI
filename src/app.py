@@ -31,7 +31,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowIcon(QIcon(resource_path("assets/icon.png")))
+        self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
         self.setWindowTitle("XrayGUI")
         self.setFixedSize(220, 150)
 
