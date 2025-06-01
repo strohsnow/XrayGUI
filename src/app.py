@@ -27,6 +27,12 @@ class MainWindow(QWidget):
         self.setWindowTitle("XrayGUI")
         self.setFixedSize(220, 150)
 
+        try:
+            self.nssm = nssm.NSSM(config.NSSM_EXE, config.XRAY_SERVICE)
+        except FileNotFoundError as e:
+            self.display_error("Error", f"{e}")
+            sys.exit(1)
+
         self.remark: str | None = None
         self.proxy = winproxy.WinProxy(config.PROXY_IP_ADDR, config.PROXY_PORT)
 
@@ -161,13 +167,8 @@ class MainWindow(QWidget):
 
         try:
             firewall.add_rule(config.FIREWALL_RULE, config.XRAY_EXE)
-            nssm.install_service(
-                config.NSSM_EXE,
-                config.XRAY_SERVICE,
-                config.XRAY_EXE,
-                ["-c", config.CONFIG_JSON],
-            )
-            nssm.start_service(config.NSSM_EXE, config.XRAY_SERVICE)
+            self.nssm.install(config.XRAY_EXE, ["-c", config.CONFIG_JSON])
+            self.nssm.start()
         except Exception as e:
             self.display_error("Error", f"Failed to start VPN:\n{e}")
 
@@ -178,8 +179,8 @@ class MainWindow(QWidget):
 
     def stop_xray(self) -> None:
         try:
-            nssm.stop_service(config.NSSM_EXE, config.XRAY_SERVICE)
-            nssm.remove_service(config.NSSM_EXE, config.XRAY_SERVICE)
+            self.nssm.stop()
+            self.nssm.remove()
             firewall.delete_rule(config.FIREWALL_RULE)
         except Exception as e:
             self.display_error("Error", f"Failed to stop VPN:\n{e}")
@@ -189,11 +190,7 @@ class MainWindow(QWidget):
         self.refresh_status_display()
 
     def xray_enabled(self) -> bool:
-        try:
-            return nssm.service_running(config.NSSM_EXE, config.XRAY_SERVICE)
-        except FileNotFoundError as e:
-            self.display_error("Error", f"{e}")
-            sys.exit(1)
+        return self.nssm.service_running()
 
     def toggle_system_proxy(self) -> None:
         if self.proxy.server_set():
