@@ -1,1 +1,10 @@
-pyinstaller --onefile --windowed --uac-admin --icon=assets\icon.ico --add-data="assets\icon.ico;assets" --name=XrayGUI --clean src\app.py
+pyinstaller `
+  --clean `
+  --onedir `
+  --noconsole `
+  --name "XrayGUI" `
+  --icon "assets\icon.ico" `
+  --add-data "assets;assets" `
+  --add-data "bin;bin" `
+  --add-binary "bin\xray.exe;bin" `
+  src\app.py
