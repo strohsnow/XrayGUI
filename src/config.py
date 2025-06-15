@@ -1,20 +1,31 @@
-import sys
+import os
 from pathlib import Path
 
-APP_DIR = Path(sys.argv[0]).resolve().parent
-BIN_DIR = APP_DIR / "bin"
-CONFIG_DIR = APP_DIR / "config"
+APP_ROOT = Path(__file__).resolve().parent
 
-XRAY_EXE = str(BIN_DIR / "xray.exe")
-NSSM_EXE = str(BIN_DIR / "nssm.exe")
+_ENV_APPDATA = os.getenv("APPDATA")
+if _ENV_APPDATA:
+    APPDATA_ROOT = Path(_ENV_APPDATA)
+elif (Path.home() / "AppData" / "Roaming").exists():
+    APPDATA_ROOT = Path.home() / "AppData" / "Roaming"
+else:
+    APPDATA_ROOT = Path.home() / ".config"
 
-CONFIGS_JSON = str(CONFIG_DIR / "configs.json")
-CONFIG_JSON = str(CONFIG_DIR / "config.json")
-SUB_TXT = str(CONFIG_DIR / "sub.txt")
+BIN_DIR = APP_ROOT / "bin"
+ASSET_DIR = APP_ROOT / "assets"
+APPDATA_DIR = APPDATA_ROOT / "XrayGUI"
+CONFIG_DIR = APPDATA_DIR / "config"
+LOG_DIR = APPDATA_DIR / "logs"
 
-XRAY_SERVICE = "XrayGUI"
-FIREWALL_RULE = "XrayGUI"
-USER_AGENT = "Happ/XrayGUI/1.1"
+XRAY_PATH = str(BIN_DIR / "xray.exe")
+ICON_PATH = str(ASSET_DIR / "icon.ico")
+CONFIGS_PATH = str(CONFIG_DIR / "configs.json")
+CONFIG_PATH = str(CONFIG_DIR / "config.json")
+SUB_PATH = str(CONFIG_DIR / "sub.txt")
 
+USER_AGENT = "Happ/XrayGUI/1.2"
 PROXY_IP_ADDR = "127.0.0.1"
 PROXY_PORT = 2080
+SOCKET_NAME = "XrayGUI"
+
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)

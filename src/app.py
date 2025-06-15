@@ -1,8 +1,9 @@
 import json
-import os
 import sys
 
+from PySide6.QtCore import QEvent
 from PySide6.QtGui import QIcon
+from PySide6.QtNetwork import QLocalServer
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -14,38 +15,48 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import config
-import firewall
-import nssm
-import subscription
-import winproxy
+from config import (
+    CONFIG_PATH,
+    CONFIGS_PATH,
+    ICON_PATH,
+    PROXY_IP_ADDR,
+    PROXY_PORT,
+    SOCKET_NAME,
+    SUB_PATH,
+    USER_AGENT,
+    XRAY_PATH,
+)
+from core.proxy import ProxyManager
+from core.server import ServerManager
+from core.xray import XrayManager
+from ui.tray import Tray
+from utils.ipc import pass_to_main, start_server
 
 
-def resource_path(relative_path: str) -> str:
-    if getattr(sys, "_MEIPASS", False):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
-
-
-class MainWindow(QWidget):
-    def __init__(self):
+class XrayGUI(QWidget):
+    def __init__(self, server: QLocalServer) -> None:
         super().__init__()
+        self.icon = QIcon(ICON_PATH)
 
-        self.setWindowIcon(QIcon(resource_path("assets/icon.ico")))
+        self.setWindowIcon(self.icon)
         self.setWindowTitle("XrayGUI")
-        self.setFixedSize(220, 150)
+        self.setFixedSize(220, 188)
 
-        try:
-            self.nssm = nssm.NSSM(config.NSSM_EXE, config.XRAY_SERVICE)
-        except FileNotFoundError as e:
-            self.display_error("Error", f"{e}")
-            sys.exit(1)
+        self.xray_manager = XrayManager(XRAY_PATH, CONFIG_PATH)
+        self.server_manager = ServerManager(USER_AGENT, SUB_PATH, CONFIGS_PATH, CONFIG_PATH)
+        self.proxy_manager = ProxyManager(PROXY_IP_ADDR, PROXY_PORT)
+        self.tray = Tray(self, self.icon)
 
-        self.remark: str | None = None
-        self.proxy = winproxy.WinProxy(config.PROXY_IP_ADDR, config.PROXY_PORT)
+        self._setup_ui()
 
+        self._update_status_info()
+        self._update_server_info()
+        self._update_system_proxy_info()
+
+        server.newConnection.connect(self._on_ipc)
+
+    def _setup_ui(self) -> None:
         status_layout = QHBoxLayout()
-
         self.status_label = QLabel()
         self.server_label = QLabel()
         status_layout.addWidget(self.status_label)
@@ -59,21 +70,26 @@ class MainWindow(QWidget):
         self.toggle_xray_button.clicked.connect(self.toggle_xray)
         buttons_layout.addWidget(self.toggle_xray_button)
 
+        self.select_server_button = QPushButton("Select Server")
+        self.select_server_button.clicked.connect(self.select_server)
+        buttons_layout.addWidget(self.select_server_button)
+
         self.toggle_system_proxy_button = QPushButton()
         self.toggle_system_proxy_button.clicked.connect(self.toggle_system_proxy)
         buttons_layout.addWidget(self.toggle_system_proxy_button)
 
-        self.import_subscription_button = QPushButton("Import subscription")
-        self.import_subscription_button.clicked.connect(self.import_subscription)
-        buttons_layout.addWidget(self.import_subscription_button)
+        import_subscription_button = QPushButton("Import Subscription")
+        import_subscription_button.clicked.connect(self.import_subscription)
+        buttons_layout.addWidget(import_subscription_button)
 
-        self.update_subscription_button = QPushButton("Update subscription")
-        self.update_subscription_button.clicked.connect(self.update_subscription)
-        buttons_layout.addWidget(self.update_subscription_button)
+        update_subscription_button = QPushButton("Update Subscription")
+        update_subscription_button.clicked.connect(self.update_subscription)
+        buttons_layout.addWidget(update_subscription_button)
 
         self.setLayout(buttons_layout)
-        self.refresh_status_display()
-        self.refresh_proxy_display()
+
+        self.tray.toggle_xray_action.triggered.connect(self.toggle_xray)
+        self.tray.toggle_system_proxy_action.triggered.connect(self.toggle_system_proxy)
 
     def display_message(self, title: str, message: str) -> None:
         QMessageBox.information(self, title, message)
@@ -81,139 +97,156 @@ class MainWindow(QWidget):
     def display_error(self, title: str, message: str) -> None:
         QMessageBox.critical(self, title, message)
 
-    def refresh_status_display(self) -> None:
-        if self.xray_enabled():
-            self.status_label.setText("Status: Running")
-            if self.remark is None and os.path.isfile(config.CONFIG_JSON):
-                with open(config.CONFIG_JSON, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                self.remark = cfg.get("remarks", "")
-            self.server_label.setText(f"Server: {self.remark or 'Not selected'}")
-            self.toggle_xray_button.setText("Stop Xray")
-        else:
-            self.status_label.setText("Status: Stopped")
-            self.server_label.setText("Server: Not selected")
-            self.toggle_xray_button.setText("Start Xray")
+    def _on_ipc(self) -> None:
+        self.show()
+        socket = self.sender().nextPendingConnection()
+        if socket and socket.waitForReadyRead(50):
+            try:
+                args = json.loads(bytes(socket.readAll()).decode("utf-8"))
+            except json.JSONDecodeError:
+                args = []
 
-    def refresh_proxy_display(self) -> None:
-        if self.proxy.server_set():
-            self.toggle_system_proxy_button.setText("Disable system proxy")
-        else:
-            self.toggle_system_proxy_button.setText("Enable system proxy")
+            for arg in args:
+                if arg.startswith("happ://add/"):
+                    self.import_subscription(arg.removeprefix("happ://add/"))
+        socket.close()
 
-    def import_subscription(self) -> None:
-        url, ok = QInputDialog.getText(
-            self, "Import subscription", "Enter subscription URL:"
-        )
-        if not ok or not url:
-            self.display_error("Error", "Invalid subscription URL")
-            return
+    def _update_status_info(self) -> None:
+        running = self.xray_manager.is_running()
+        self.status_label.setText(f"Status: {'Running' if running else 'Stopped'}")
+        self.toggle_xray_button.setText(f"{'Stop' if running else 'Start'} Xray")
+        self.tray.update_xray_action(running)
 
-        if not os.path.exists(config.CONFIG_DIR):
-            os.makedirs(config.CONFIG_DIR)
+    def _update_server_info(self) -> None:
+        current_server = self.server_manager.current_server
+        self.server_label.setText(f"Server: {'Not Selected' if not current_server else current_server}")
+        self.tray.update_server_menu(self.server_manager.servers, current_server)
+
+    def _update_system_proxy_info(self) -> None:
+        enabled = self.proxy_manager.server_set()
+        self.toggle_system_proxy_button.setText(f"{'Disable' if enabled else 'Enable'} System Proxy")
+        self.tray.update_system_proxy_action(enabled)
+
+    def import_subscription(self, url: str | None = None) -> None:
+        if not url:
+            url, ok = QInputDialog.getText(self, "Import subscription", "Enter subscription URL:")
+            if not ok or not url:
+                return
 
         try:
-            subscription.get_config_json(url, config.CONFIGS_JSON)
-            self.display_message("Success", "Subscription imported successfully")
+            self.server_manager.import_subscription(url)
         except Exception as e:
             self.display_error("Error", f"Failed to import subscription:\n{e}")
+            return
 
-        with open(config.SUB_TXT, "w", encoding="utf-8") as f:
-            f.write(url.strip())
+        self._update_server_info()
+        self.display_message("Success", "Subscription imported successfully")
 
     def update_subscription(self) -> None:
-        if not os.path.isfile(config.SUB_TXT):
+        if not self.server_manager.subscription_url:
             self.display_error("Error", "Please import a subscription first")
             return
 
-        with open(config.SUB_TXT, "r", encoding="utf-8") as f:
-            url = f.read().strip()
-
         try:
-            subscription.get_config_json(url, config.CONFIGS_JSON)
-            self.display_message("Success", "Subscription updated successfully")
+            self.server_manager.import_subscription(self.server_manager.subscription_url)
         except Exception as e:
             self.display_error("Error", f"Failed to update subscription:\n{e}")
-
-    def choose_subscription(self) -> dict | None:
-        if not os.path.isfile(config.CONFIGS_JSON):
-            self.display_error("Error", "Please import a subscription first")
-            return None
-
-        with open(config.CONFIGS_JSON, "r", encoding="utf-8") as f:
-            configs = json.load(f)
-
-        remarks = [entry["remarks"] for entry in configs]
-        if not remarks:
-            self.display_error("Error", "Server list is empty")
-            return None
-
-        item, ok = QInputDialog.getItem(
-            self, "Select server", "Choose a server:", remarks, 0, False
-        )
-        if not ok:
-            return None
-
-        self.server_label.setText(f"Server: {item}")
-        self.remark = item
-        return configs[remarks.index(item)]
-
-    def toggle_xray(self) -> None:
-        if self.xray_enabled():
-            self.stop_xray()
-        else:
-            self.start_xray()
-
-    def start_xray(self) -> None:
-        sub = self.choose_subscription()
-        if not sub:
-            self.display_error("Error", "Server is not selected")
             return
 
-        with open(config.CONFIG_JSON, "w", encoding="utf-8") as f:
-            json.dump(sub, f, ensure_ascii=False, indent=2)
+        self._update_server_info()
+        self.display_message("Success", "Subscription updated successfully")
 
-        try:
-            firewall.add_rule(config.FIREWALL_RULE, config.XRAY_EXE)
-            self.nssm.install(config.XRAY_EXE, ["-c", config.CONFIG_JSON])
-            self.nssm.start()
-        except Exception as e:
-            self.display_error("Error", f"Failed to start VPN:\n{e}")
+    def _select_server(self, remark: str) -> None:
+        if not self.server_manager.select_server(remark):
+            return
 
-        if self.proxy.server_set():
-            self.proxy.set_enable(True)
+        self._update_server_info()
+        if self.xray_manager.is_running():
+            self.toggle_xray()
+            self.toggle_xray()
 
-        self.refresh_status_display()
+    def select_server(self) -> None:
+        if not self.server_manager.servers:
+            self.display_error("Error", "Please import a subscription first")
+            return
 
-    def stop_xray(self) -> None:
-        try:
-            self.nssm.stop()
-            self.nssm.remove()
-            firewall.delete_rule(config.FIREWALL_RULE)
-        except Exception as e:
-            self.display_error("Error", f"Failed to stop VPN:\n{e}")
+        remarks = [server.get("remarks", "No remark") for server in self.server_manager.servers]
+        remark, ok = QInputDialog.getItem(self, "Select server", "Choose a server:", remarks, 0, False)
+        if not ok or not remark:
+            return
 
-        self.proxy.set_enable(False)
+        self._select_server(remark)
 
-        self.refresh_status_display()
+    def toggle_xray(self) -> None:
+        if self.xray_manager.is_running():
+            self.xray_manager.stop()
+            self.proxy_manager.set_enable(False)
+        else:
+            if not self.server_manager.current_server:
+                self.display_error("Error", "Please select a server first")
+                return
 
-    def xray_enabled(self) -> bool:
-        return self.nssm.service_running()
+            if self.xray_manager.start():
+                if self.proxy_manager.server_set():
+                    self.proxy_manager.set_enable(True)
+            else:
+                self.display_error("Error", "Failed to start Xray")
+                return
+
+        self._update_status_info()
+        self._update_system_proxy_info()
 
     def toggle_system_proxy(self) -> None:
-        if self.proxy.server_set():
-            self.proxy.delete_server()
-            self.proxy.set_enable(False)
+        if self.proxy_manager.server_set():
+            self.proxy_manager.delete_server()
+            self.proxy_manager.set_enable(False)
         else:
-            self.proxy.set_server()
-            if self.xray_enabled():
-                self.proxy.set_enable(True)
+            self.proxy_manager.set_server()
+            if self.xray_manager.is_running():
+                self.proxy_manager.set_enable(True)
 
-        self.refresh_proxy_display()
+        self._update_system_proxy_info()
+
+    def _quit(self) -> None:
+        self.xray_manager.stop()
+        self.proxy_manager.set_enable(False)
+        QApplication.quit()
+
+    def showEvent(self, event: QEvent) -> None:
+        super().showEvent(event)
+        self.showNormal()
+        self.activateWindow()
+        self.tray.update_action_visibility()
+
+    def hideEvent(self, event: QEvent) -> None:
+        super().hideEvent(event)
+        self.tray.update_action_visibility()
+
+    def closeEvent(self, event: QEvent) -> None:
+        event.ignore()
+        self.hide()
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.WindowStateChange:
+            if self.isMinimized():
+                self.hide()
+        super().changeEvent(event)
 
 
 if __name__ == "__main__":
+    if pass_to_main(sys.argv, SOCKET_NAME):
+        sys.exit(0)
+
     app = QApplication(sys.argv)
-    window = MainWindow()
+    app.setQuitOnLastWindowClosed(False)
+
+    server = start_server(SOCKET_NAME)
+    window = XrayGUI(server)
     window.show()
+
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg.startswith("happ://add/"):
+            window.import_subscription(arg.removeprefix("happ://add/"))
+
     sys.exit(app.exec())
