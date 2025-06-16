@@ -219,18 +219,22 @@ class XrayGUI(QWidget):
         self.tray.update_action_visibility()
 
     def hideEvent(self, event: QEvent) -> None:
-        super().hideEvent(event)
+        event.accept()
         self.tray.update_action_visibility()
 
     def closeEvent(self, event: QEvent) -> None:
         event.ignore()
         self.hide()
+        self.tray.show_message("XrayGUI", "XrayGUI is running in the system tray")
+        self.tray.update_action_visibility()
 
     def changeEvent(self, event: QEvent) -> None:
-        if event.type() == QEvent.WindowStateChange:
-            if self.isMinimized():
-                self.hide()
         super().changeEvent(event)
+        if event.type() == QEvent.WindowStateChange and self.isMinimized():
+            event.ignore()
+            self.hide()
+            self.tray.show_message("XrayGUI", "XrayGUI is running in the system tray")
+            self.tray.update_action_visibility()
 
 
 if __name__ == "__main__":

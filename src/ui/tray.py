@@ -54,6 +54,9 @@ class Tray(QObject):
         else:
             self.parent.show()
 
+    def show_message(self, title: str, message: str) -> None:
+        self.tray.showMessage(title, message)
+
     def update_action_visibility(self) -> None:
         self.show_action.setVisible(not self.parent.isVisible())
         self.hide_action.setVisible(self.parent.isVisible())
