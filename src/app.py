@@ -31,7 +31,7 @@ from config import (
     XRAY_PATH,
 )
 from core.proxy import ProxyManager
-from core.server import ConfigManager
+from core.config import ConfigManager
 from core.tun import TunManager
 from core.xray import XrayManager
 from ui.tray import Tray
