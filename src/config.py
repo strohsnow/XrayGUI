@@ -24,6 +24,7 @@ XRAY_CONFIGS_PATH = str(CONFIG_DIR / "configs.json")
 XRAY_CONFIG_PATH = str(CONFIG_DIR / "config.json")
 TUN_PATH = str(BIN_DIR / "mihomo.exe")
 TUN_CONFIG_PATH = str(CONFIG_DIR / "config.yaml")
+TUN_LOG_PATH = str(BIN_DIR / "mihomo.log")
 
 USER_AGENT = "Happ/XrayGUI/1.3"
 PROXY_IP_ADDR = "127.0.0.1"

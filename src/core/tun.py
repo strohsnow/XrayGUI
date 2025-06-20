@@ -8,9 +8,10 @@ from win32com.shell import shellcon
 
 
 class TunManager:
-    def __init__(self, executable_path: str, config_path: str) -> None:
+    def __init__(self, executable_path: str, config_path: str, log_path: str) -> None:
         self.executable_path: str = executable_path
         self.config_path: str = config_path
+        self.log_path: str = log_path
 
         self._process: psutil.Process | None = None
 
@@ -24,17 +25,23 @@ class TunManager:
         if not os.path.isfile(self.config_path):
             return False
 
+        params: str = (
+            f'/C "{self.executable_path} '
+            f'-d "{os.path.dirname(self.executable_path)}" '
+            f'-f "{self.config_path}"'
+            f' >> "{self.log_path}" 2>&1"'
+        )
+
         try:
             info = shell.ShellExecuteEx(
                 fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                 lpVerb="runas",
-                lpFile=self.executable_path,
-                lpParameters=f'-d "{os.path.dirname(self.executable_path)}" -f "{self.config_path}"',
+                lpFile="cmd.exe",
+                lpParameters=params,
                 lpDirectory=os.path.dirname(self.executable_path),
                 nShow=win32con.SW_HIDE,
             )
-            handle = info["hProcess"]
-            pid = win32process.GetProcessId(handle)
+            pid = win32process.GetProcessId(info["hProcess"])
             self._process = psutil.Process(pid)
             return True
         except Exception:
@@ -45,5 +52,7 @@ class TunManager:
         if not self.is_running():
             return
 
+        for child in self._process.children(recursive=True):
+            child.kill()
         self._process.kill()
         self._process = None

@@ -22,6 +22,7 @@ from config import (
     SOCKET_NAME,
     SUBSCRIPTION_PATH,
     TUN_CONFIG_PATH,
+    TUN_LOG_PATH,
     TUN_PATH,
     USER_AGENT,
     XRAY_CONFIG_PATH,
@@ -49,7 +50,7 @@ class XrayGUI(QWidget):
         self.config_manager = ConfigManager(
             USER_AGENT, SUBSCRIPTION_PATH, XRAY_CONFIGS_PATH, XRAY_CONFIG_PATH, TUN_CONFIG_PATH
         )
-        self.tun_manager = TunManager(TUN_PATH, TUN_CONFIG_PATH)
+        self.tun_manager = TunManager(TUN_PATH, TUN_CONFIG_PATH, TUN_LOG_PATH)
         self.tun_enabled: bool = self.tun_manager.is_running()
         self.proxy_manager = ProxyManager(PROXY_IP_ADDR, PROXY_PORT)
         self.tray = Tray(self, self.icon)
