@@ -19,6 +19,7 @@ class Tray(QObject):
         self.hide_action = QAction("Hide", self.parent, triggered=self.parent.hide)
 
         self.toggle_xray_action = QAction(self.parent)
+        self.toggle_tun_action = QAction(self.parent)
         self.toggle_system_proxy_action = QAction(self.parent)
 
         self.server_menu = QMenu("Select Server", self.parent)
@@ -35,6 +36,7 @@ class Tray(QObject):
         tray_menu.addSeparator()
 
         tray_menu.addAction(self.toggle_xray_action)
+        tray_menu.addAction(self.toggle_tun_action)
         tray_menu.addAction(self.toggle_system_proxy_action)
         tray_menu.addSeparator()
 
@@ -47,15 +49,13 @@ class Tray(QObject):
         self.tray.setContextMenu(tray_menu)
 
     def _tray_click(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.Context:
+        if reason == QSystemTrayIcon.ActivationReason.Context:
             return
+
         if self.parent.isVisible():
             self.parent.hide()
         else:
             self.parent.show()
-
-    def show_message(self, title: str, message: str) -> None:
-        self.tray.showMessage(title, message)
 
     def update_action_visibility(self) -> None:
         self.show_action.setVisible(not self.parent.isVisible())
@@ -80,7 +80,10 @@ class Tray(QObject):
             self.server_menu.addAction(action)
 
     def update_xray_action(self, running: bool) -> None:
-        self.toggle_xray_action.setText(f"{'Stop' if running else 'Start'} Xray")
+        self.toggle_xray_action.setText(f"{'Stop' if running else 'Start'} VPN")
+
+    def update_tun_action(self, enabled: bool) -> None:
+        self.toggle_tun_action.setText(f"{'Disable' if enabled else 'Enable'} TUN")
 
     def update_system_proxy_action(self, enabled: bool) -> None:
         self.toggle_system_proxy_action.setText(f"{'Disable' if enabled else 'Enable'} System Proxy")

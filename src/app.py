@@ -16,18 +16,21 @@ from PySide6.QtWidgets import (
 )
 
 from config import (
-    CONFIG_PATH,
-    CONFIGS_PATH,
     ICON_PATH,
     PROXY_IP_ADDR,
     PROXY_PORT,
     SOCKET_NAME,
-    SUB_PATH,
+    SUBSCRIPTION_PATH,
+    TUN_CONFIG_PATH,
+    TUN_PATH,
     USER_AGENT,
+    XRAY_CONFIG_PATH,
+    XRAY_CONFIGS_PATH,
     XRAY_PATH,
 )
 from core.proxy import ProxyManager
-from core.server import ServerManager
+from core.server import ConfigManager
+from core.tun import TunManager
 from core.xray import XrayManager
 from ui.tray import Tray
 from utils.ipc import pass_to_main, start_server
@@ -40,10 +43,14 @@ class XrayGUI(QWidget):
 
         self.setWindowIcon(self.icon)
         self.setWindowTitle("XrayGUI")
-        self.setFixedSize(220, 188)
+        self.setFixedSize(220, 220)
 
-        self.xray_manager = XrayManager(XRAY_PATH, CONFIG_PATH)
-        self.server_manager = ServerManager(USER_AGENT, SUB_PATH, CONFIGS_PATH, CONFIG_PATH)
+        self.xray_manager = XrayManager(XRAY_PATH, XRAY_CONFIG_PATH)
+        self.config_manager = ConfigManager(
+            USER_AGENT, SUBSCRIPTION_PATH, XRAY_CONFIGS_PATH, XRAY_CONFIG_PATH, TUN_CONFIG_PATH
+        )
+        self.tun_manager = TunManager(TUN_PATH, TUN_CONFIG_PATH)
+        self.tun_enabled: bool = self.tun_manager.is_running()
         self.proxy_manager = ProxyManager(PROXY_IP_ADDR, PROXY_PORT)
         self.tray = Tray(self, self.icon)
 
@@ -51,6 +58,7 @@ class XrayGUI(QWidget):
 
         self._update_status_info()
         self._update_server_info()
+        self._update_tun_info()
         self._update_system_proxy_info()
 
         server.newConnection.connect(self._on_ipc)
@@ -74,6 +82,10 @@ class XrayGUI(QWidget):
         self.select_server_button.clicked.connect(self.select_server)
         buttons_layout.addWidget(self.select_server_button)
 
+        self.toggle_tun_button = QPushButton()
+        self.toggle_tun_button.clicked.connect(self.toggle_tun)
+        buttons_layout.addWidget(self.toggle_tun_button)
+
         self.toggle_system_proxy_button = QPushButton()
         self.toggle_system_proxy_button.clicked.connect(self.toggle_system_proxy)
         buttons_layout.addWidget(self.toggle_system_proxy_button)
@@ -89,6 +101,7 @@ class XrayGUI(QWidget):
         self.setLayout(buttons_layout)
 
         self.tray.toggle_xray_action.triggered.connect(self.toggle_xray)
+        self.tray.toggle_tun_action.triggered.connect(self.toggle_tun)
         self.tray.toggle_system_proxy_action.triggered.connect(self.toggle_system_proxy)
 
     def display_message(self, title: str, message: str) -> None:
@@ -114,13 +127,17 @@ class XrayGUI(QWidget):
     def _update_status_info(self) -> None:
         running = self.xray_manager.is_running()
         self.status_label.setText(f"Status: {'Running' if running else 'Stopped'}")
-        self.toggle_xray_button.setText(f"{'Stop' if running else 'Start'} Xray")
+        self.toggle_xray_button.setText(f"{'Stop' if running else 'Start'} VPN")
         self.tray.update_xray_action(running)
 
     def _update_server_info(self) -> None:
-        current_server = self.server_manager.current_server
+        current_server = self.config_manager.current_remark
         self.server_label.setText(f"Server: {'Not Selected' if not current_server else current_server}")
-        self.tray.update_server_menu(self.server_manager.servers, current_server)
+        self.tray.update_server_menu(self.config_manager.xray_configs, current_server)
+
+    def _update_tun_info(self) -> None:
+        self.toggle_tun_button.setText(f"{'Disable' if self.tun_enabled else 'Enable'} TUN")
+        self.tray.update_tun_action(self.tun_enabled)
 
     def _update_system_proxy_info(self) -> None:
         enabled = self.proxy_manager.server_set()
@@ -134,7 +151,7 @@ class XrayGUI(QWidget):
                 return
 
         try:
-            self.server_manager.import_subscription(url)
+            self.config_manager.import_configs(url)
         except Exception as e:
             self.display_error("Error", f"Failed to import subscription:\n{e}")
             return
@@ -143,12 +160,12 @@ class XrayGUI(QWidget):
         self.display_message("Success", "Subscription imported successfully")
 
     def update_subscription(self) -> None:
-        if not self.server_manager.subscription_url:
+        if not self.config_manager.subscription_url:
             self.display_error("Error", "Please import a subscription first")
             return
 
         try:
-            self.server_manager.import_subscription(self.server_manager.subscription_url)
+            self.config_manager.import_configs(self.config_manager.subscription_url)
         except Exception as e:
             self.display_error("Error", f"Failed to update subscription:\n{e}")
             return
@@ -157,7 +174,7 @@ class XrayGUI(QWidget):
         self.display_message("Success", "Subscription updated successfully")
 
     def _select_server(self, remark: str) -> None:
-        if not self.server_manager.select_server(remark):
+        if not self.config_manager.select_config(remark):
             return
 
         self._update_server_info()
@@ -166,11 +183,11 @@ class XrayGUI(QWidget):
             self.toggle_xray()
 
     def select_server(self) -> None:
-        if not self.server_manager.servers:
+        if not self.config_manager.xray_configs:
             self.display_error("Error", "Please import a subscription first")
             return
 
-        remarks = [server.get("remarks", "No remark") for server in self.server_manager.servers]
+        remarks = [server.get("remarks", "No remark") for server in self.config_manager.xray_configs]
         remark, ok = QInputDialog.getItem(self, "Select server", "Choose a server:", remarks, 0, False)
         if not ok or not remark:
             return
@@ -180,21 +197,27 @@ class XrayGUI(QWidget):
     def toggle_xray(self) -> None:
         if self.xray_manager.is_running():
             self.xray_manager.stop()
+            self.tun_manager.stop()
             self.proxy_manager.set_enable(False)
         else:
-            if not self.server_manager.current_server:
+            if not self.config_manager.current_remark:
                 self.display_error("Error", "Please select a server first")
                 return
 
             if self.xray_manager.start():
                 if self.proxy_manager.server_set():
                     self.proxy_manager.set_enable(True)
+                if self.tun_enabled:
+                    if not self.tun_manager.start():
+                        self.tun_enabled = False
+                        self.display_error("Error", "Failed to start TUN")
             else:
-                self.display_error("Error", "Failed to start Xray")
+                self.display_error("Error", "Failed to start VPN")
                 return
 
         self._update_status_info()
         self._update_system_proxy_info()
+        self._update_tun_info()
 
     def toggle_system_proxy(self) -> None:
         if self.proxy_manager.server_set():
@@ -207,9 +230,24 @@ class XrayGUI(QWidget):
 
         self._update_system_proxy_info()
 
+    def toggle_tun(self) -> None:
+        if self.tun_enabled:
+            self.tun_enabled = False
+            self.tun_manager.stop()
+        elif self.xray_manager.is_running():
+            if not self.tun_manager.start():
+                self.display_error("Error", "Failed to start TUN")
+            else:
+                self.tun_enabled = True
+        else:
+            self.tun_enabled = True
+
+        self._update_tun_info()
+
     def _quit(self) -> None:
         self.xray_manager.stop()
         self.proxy_manager.set_enable(False)
+        self.tun_manager.stop()
         QApplication.quit()
 
     def showEvent(self, event: QEvent) -> None:
@@ -225,7 +263,6 @@ class XrayGUI(QWidget):
     def closeEvent(self, event: QEvent) -> None:
         event.ignore()
         self.hide()
-        self.tray.show_message("XrayGUI", "XrayGUI is running in the system tray")
         self.tray.update_action_visibility()
 
     def changeEvent(self, event: QEvent) -> None:
@@ -233,7 +270,6 @@ class XrayGUI(QWidget):
         if event.type() == QEvent.WindowStateChange and self.isMinimized():
             event.ignore()
             self.hide()
-            self.tray.show_message("XrayGUI", "XrayGUI is running in the system tray")
             self.tray.update_action_visibility()
 
 
