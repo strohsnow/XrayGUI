@@ -6,10 +6,8 @@ APP_ROOT = Path(__file__).resolve().parent
 _ENV_APPDATA = os.getenv("APPDATA")
 if _ENV_APPDATA:
     APPDATA_ROOT = Path(_ENV_APPDATA)
-elif (Path.home() / "AppData" / "Roaming").exists():
-    APPDATA_ROOT = Path.home() / "AppData" / "Roaming"
 else:
-    APPDATA_ROOT = Path.home() / ".config"
+    APPDATA_ROOT = Path.home() / "AppData" / "Roaming"
 
 ASSET_DIR = APP_ROOT / "assets"
 BIN_DIR = APP_ROOT / "bin"
@@ -30,7 +28,11 @@ TUN_PATH = str(BIN_DIR / "mihomo.exe")
 TUN_CONFIG_PATH = str(CONFIG_DIR / "config.yaml")
 TUN_LOG_PATH = str(LOG_DIR / "tun.log")
 
-USER_AGENT = "Happ/XrayGUI/1.4"
+APP_NAME = "XrayGUI"
+APP_VERSION = "1.5"
+USER_AGENT = f"Happ/{APP_NAME}/{APP_VERSION}"
 PROXY_IP_ADDR = "127.0.0.1"
 PROXY_PORT = 2080
-SOCKET_NAME = "XrayGUI"
+
+GITHUB_RELEASES_PAGE = "https://github.com/strohsnow/XrayGUI/releases"
+GITHUB_API_LATEST_RELEASE = "https://api.github.com/repos/strohsnow/XrayGUI/releases/latest"

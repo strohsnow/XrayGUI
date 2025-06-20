@@ -1,5 +1,6 @@
 import json
 import sys
+import webbrowser
 
 from PySide6.QtCore import QEvent
 from PySide6.QtGui import QIcon
@@ -16,10 +17,11 @@ from PySide6.QtWidgets import (
 )
 
 from config import (
+    APP_NAME,
+    APP_VERSION,
     ICON_PATH,
     PROXY_IP_ADDR,
     PROXY_PORT,
-    SOCKET_NAME,
     SUBSCRIPTION_PATH,
     TUN_CONFIG_PATH,
     TUN_LOG_PATH,
@@ -36,6 +38,7 @@ from core.tun import TunManager
 from core.xray import XrayManager
 from ui.tray import Tray
 from utils.ipc import pass_to_main, start_server
+from utils.update import get_latest_version, is_newer_version
 
 
 class XrayGUI(QWidget):
@@ -62,6 +65,8 @@ class XrayGUI(QWidget):
         self._update_server_info()
         self._update_tun_info()
         self._update_system_proxy_info()
+
+        self._check_updates()
 
         server.newConnection.connect(self._on_ipc)
 
@@ -145,6 +150,21 @@ class XrayGUI(QWidget):
         enabled = self.proxy_manager.server_set()
         self.toggle_system_proxy_button.setText(f"{'Disable' if enabled else 'Enable'} System Proxy")
         self.tray.update_system_proxy_action(enabled)
+
+    def _check_updates(self) -> None:
+        try:
+            latest_version, download_url = get_latest_version()
+            if latest_version and is_newer_version(APP_VERSION, latest_version):
+                reply = QMessageBox.question(
+                    self,
+                    "Update Available",
+                    f"A new version {latest_version} is available.\nWould you like to download it now?",
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    webbrowser.open(download_url)
+        except Exception:
+            pass
 
     def import_subscription(self, url: str | None = None) -> None:
         if not url:
@@ -276,13 +296,13 @@ class XrayGUI(QWidget):
 
 
 if __name__ == "__main__":
-    if pass_to_main(sys.argv, SOCKET_NAME):
+    if pass_to_main(sys.argv, APP_NAME):
         sys.exit(0)
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
-    server = start_server(SOCKET_NAME)
+    server = start_server(APP_NAME)
     window = XrayGUI(server)
     window.show()
 
