@@ -9,36 +9,44 @@ import requests
 import wmi
 
 
-class ServerManager:
-    def __init__(self, user_agent: str, subscription_path: str, servers_path: str, current_server_path: str) -> None:
+class ConfigManager:
+    def __init__(
+        self,
+        user_agent: str,
+        subscription_path: str,
+        xray_configs_path: str,
+        xray_config_path: str,
+        tun_config_path: str,
+    ) -> None:
         self.user_agent: str = user_agent
 
         self.subscription_path: str = subscription_path
-        self.servers_path: str = servers_path
-        self.current_server_path: str = current_server_path
+        self.xray_configs_path: str = xray_configs_path
+        self.xray_config_path: str = xray_config_path
+        self.tun_config_path: str = tun_config_path
 
         self.subscription_url: str | None = None
-        self.servers: list[dict[str, Any]] = []
-        self.current_server: str | None = None
+        self.xray_configs: list[dict[str, Any]] = []
+        self.current_remark: str | None = None
 
         self._load_subscription_url()
-        self._load_servers()
-        self._load_current_server()
+        self._load_xray_configs()
+        self._load_xray_config()
 
     def _load_subscription_url(self) -> None:
         if os.path.isfile(self.subscription_path):
             with open(self.subscription_path, "r", encoding="utf-8") as f:
                 self.subscription_url = f.read().strip()
 
-    def _load_servers(self) -> None:
-        if os.path.isfile(self.servers_path):
-            with open(self.servers_path, "r", encoding="utf-8") as f:
-                self.servers = json.load(f)
+    def _load_xray_configs(self) -> None:
+        if os.path.isfile(self.xray_configs_path):
+            with open(self.xray_configs_path, "r", encoding="utf-8") as f:
+                self.xray_configs = json.load(f)
 
-    def _load_current_server(self) -> None:
-        if os.path.isfile(self.current_server_path):
-            with open(self.current_server_path, "r", encoding="utf-8") as f:
-                self.current_server = json.load(f).get("remarks", "No remark")
+    def _load_xray_config(self) -> None:
+        if os.path.isfile(self.xray_config_path):
+            with open(self.xray_config_path, "r", encoding="utf-8") as f:
+                self.current_remark = json.load(f).get("remarks", "No remark")
 
     @staticmethod
     def _get_machine_guid() -> str:
@@ -56,15 +64,15 @@ class ServerManager:
     @staticmethod
     def _get_hwid_headers() -> dict[str, str]:
         hwid_headers = {
-            "x-hwid": ServerManager._get_machine_guid(),
+            "x-hwid": ConfigManager._get_machine_guid(),
             "x-device-os": platform.system(),
             "x-ver-os": platform.version(),
-            "x-device-model": ServerManager._get_device_model(),
+            "x-device-model": ConfigManager._get_device_model(),
         }
         return hwid_headers
 
-    def import_subscription(self, url: str) -> None:
-        headers = ServerManager._get_hwid_headers()
+    def import_configs(self, url: str) -> None:
+        headers = ConfigManager._get_hwid_headers()
         headers.update({"User-Agent": self.user_agent})
 
         response = requests.get(url.rstrip("/") + "/json", headers=headers)
@@ -75,21 +83,30 @@ class ServerManager:
             announce = announce.removeprefix("base64:")
             raise Exception(f"{base64.b64decode(announce).decode('utf-8')}")
 
-        self.servers = response.json()
-        with open(self.servers_path, "w", encoding="utf-8") as f:
-            json.dump(self.servers, f, ensure_ascii=False, indent=2)
+        self.xray_configs = response.json()
+        with open(self.xray_configs_path, "w", encoding="utf-8") as f:
+            json.dump(self.xray_configs, f, ensure_ascii=False, indent=2)
+
+        if self.current_remark:
+            self.select_config(self.current_remark)
 
         with open(self.subscription_path, "w", encoding="utf-8") as f:
             f.write(url)
 
-    def select_server(self, remark: str) -> bool:
-        if not self.servers:
+        response = requests.get(url.rstrip("/") + "/mihomo", headers=headers)
+        response.raise_for_status()
+
+        with open(self.tun_config_path, "w", encoding="utf-8") as f:
+            f.write(response.text)
+
+    def select_config(self, remark: str) -> bool:
+        if not self.xray_configs:
             return False
 
-        for server in self.servers:
-            if server.get("remarks", "No remark") == remark:
-                with open(self.current_server_path, "w", encoding="utf-8") as f:
-                    json.dump(server, f, ensure_ascii=False, indent=2)
-                self.current_server = remark
+        for config in self.xray_configs:
+            if config.get("remarks", "No remark") == remark:
+                with open(self.xray_config_path, "w", encoding="utf-8") as f:
+                    json.dump(config, f, ensure_ascii=False, indent=2)
+                self.current_remark = remark
                 return True
         return False
