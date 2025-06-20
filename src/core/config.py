@@ -87,17 +87,19 @@ class ConfigManager:
         with open(self.xray_configs_path, "w", encoding="utf-8") as f:
             json.dump(self.xray_configs, f, ensure_ascii=False, indent=2)
 
-        if self.current_remark:
-            self.select_config(self.current_remark)
-
-        with open(self.subscription_path, "w", encoding="utf-8") as f:
-            f.write(url)
+        if not self.current_remark:
+            self.current_remark = self.xray_configs[0].get("remarks", "No remark")
+        self.select_config(self.current_remark)
 
         response = requests.get(url.rstrip("/") + "/mihomo", headers=headers)
         response.raise_for_status()
 
         with open(self.tun_config_path, "w", encoding="utf-8") as f:
             f.write(response.text)
+
+        self.subscription_url = url
+        with open(self.subscription_path, "w", encoding="utf-8") as f:
+            f.write(self.subscription_url)
 
     def select_config(self, remark: str) -> bool:
         if not self.xray_configs:
