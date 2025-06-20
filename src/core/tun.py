@@ -25,11 +25,13 @@ class TunManager:
         if not os.path.isfile(self.config_path):
             return False
 
-        params: str = (
-            f'/C "{self.executable_path} '
+        params = (
+            f'/C "'
+            f'"{self.executable_path}" '
             f'-d "{os.path.dirname(self.executable_path)}" '
-            f'-f "{self.config_path}"'
-            f' >> "{self.log_path}" 2>&1"'
+            f'-f "{self.config_path}" '
+            f'>> "{self.log_path}" 2>&1'
+            f'"'
         )
 
         try:
