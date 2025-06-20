@@ -29,7 +29,7 @@ class TunManager:
                 fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                 lpVerb="runas",
                 lpFile=self.executable_path,
-                lpParameters=f"-d {os.path.dirname(self.executable_path)} -f {self.config_path}",
+                lpParameters=f'-d "{os.path.dirname(self.executable_path)}" -f "{self.config_path}"',
                 lpDirectory=os.path.dirname(self.executable_path),
                 nShow=win32con.SW_HIDE,
             )
