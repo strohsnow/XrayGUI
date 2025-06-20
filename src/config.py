@@ -15,20 +15,22 @@ ASSET_DIR = APP_ROOT / "assets"
 BIN_DIR = APP_ROOT / "bin"
 APPDATA_DIR = APPDATA_ROOT / "XrayGUI"
 CONFIG_DIR = APPDATA_DIR / "config"
-LOG_DIR = APPDATA_DIR / "logs"
+LOG_DIR = APPDATA_DIR / "log"
+
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 ICON_PATH = str(ASSET_DIR / "icon.ico")
 SUBSCRIPTION_PATH = str(CONFIG_DIR / "subscription.txt")
 XRAY_PATH = str(BIN_DIR / "xray.exe")
 XRAY_CONFIGS_PATH = str(CONFIG_DIR / "configs.json")
 XRAY_CONFIG_PATH = str(CONFIG_DIR / "config.json")
+XRAY_LOG_PATH = str(LOG_DIR)
 TUN_PATH = str(BIN_DIR / "mihomo.exe")
 TUN_CONFIG_PATH = str(CONFIG_DIR / "config.yaml")
-TUN_LOG_PATH = str(BIN_DIR / "mihomo.log")
+TUN_LOG_PATH = str(LOG_DIR / "tun.log")
 
-USER_AGENT = "Happ/XrayGUI/1.3"
+USER_AGENT = "Happ/XrayGUI/1.4"
 PROXY_IP_ADDR = "127.0.0.1"
 PROXY_PORT = 2080
 SOCKET_NAME = "XrayGUI"
-
-CONFIG_DIR.mkdir(parents=True, exist_ok=True)

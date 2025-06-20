@@ -27,6 +27,7 @@ from config import (
     USER_AGENT,
     XRAY_CONFIG_PATH,
     XRAY_CONFIGS_PATH,
+    XRAY_LOG_PATH,
     XRAY_PATH,
 )
 from core.proxy import ProxyManager
@@ -46,7 +47,7 @@ class XrayGUI(QWidget):
         self.setWindowTitle("XrayGUI")
         self.setFixedSize(220, 220)
 
-        self.xray_manager = XrayManager(XRAY_PATH, XRAY_CONFIG_PATH)
+        self.xray_manager = XrayManager(XRAY_PATH, XRAY_CONFIG_PATH, XRAY_LOG_PATH)
         self.config_manager = ConfigManager(
             USER_AGENT, SUBSCRIPTION_PATH, XRAY_CONFIGS_PATH, XRAY_CONFIG_PATH, TUN_CONFIG_PATH
         )
