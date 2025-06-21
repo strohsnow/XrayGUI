@@ -21,7 +21,7 @@ SUBSCRIPTION_PATH = str(CONFIG_DIR / "subscription.txt")
 XRAY_PATH = str(BIN_DIR / "xray.exe")
 XRAY_CONFIGS_PATH = str(CONFIG_DIR / "configs.json")
 XRAY_CONFIG_PATH = str(CONFIG_DIR / "config.json")
-XRAY_LOG_PATH = str(LOG_DIR)
+XRAY_LOG_DIR = str(LOG_DIR)
 TUN_PATH = str(BIN_DIR / "mihomo.exe")
 TUN_CONFIG_PATH = str(CONFIG_DIR / "config.yaml")
 TUN_LOG_PATH = str(LOG_DIR / "tun.log")
@@ -33,6 +33,7 @@ USER_AGENT = f"Happ/{APP_NAME}/{APP_VERSION}"
 PROXY_IP_ADDR = "127.0.0.1"
 PROXY_PORT = 2080
 
+DISCORD_DLLS_DIR = BIN_DIR
 DISCORD_PROXY_DLLS = ["DWrite.dll", "force-proxy.dll"]
 DISCORD_PROXY_CONFIG = "proxy.txt"
 

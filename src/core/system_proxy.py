@@ -2,13 +2,14 @@ import ctypes
 import winreg
 
 
-class ProxyManager:
+class SystemProxyManager:
     KEY: str = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings"
 
     def __init__(self, ip_addr: str, port: int) -> None:
         self.ip_addr: str = ip_addr
         self.port: int = port
 
+    @staticmethod
     def _refresh(self) -> None:
         ctypes.windll.Wininet.InternetSetOptionW(0, 37, 0, 0)
         ctypes.windll.Wininet.InternetSetOptionW(0, 39, 0, 0)

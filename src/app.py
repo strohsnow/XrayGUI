@@ -20,6 +20,10 @@ from PySide6.QtWidgets import (
 from config import (
     APP_NAME,
     APP_VERSION,
+    DISCORD_DIR,
+    DISCORD_DLLS_DIR,
+    DISCORD_PROXY_CONFIG,
+    DISCORD_PROXY_DLLS,
     ICON_PATH,
     PROXY_IP_ADDR,
     PROXY_PORT,
@@ -30,12 +34,12 @@ from config import (
     USER_AGENT,
     XRAY_CONFIG_PATH,
     XRAY_CONFIGS_PATH,
-    XRAY_LOG_PATH,
+    XRAY_LOG_DIR,
     XRAY_PATH,
 )
 from core.config import ConfigManager
 from core.discord_proxy import DiscordProxyManager
-from core.proxy import ProxyManager
+from core.system_proxy import SystemProxyManager
 from core.tun import TunManager
 from core.xray import XrayManager
 from ui.tray import Tray
@@ -54,14 +58,16 @@ class XrayGUI(QWidget):
         self.setFixedWidth(242 if get_current_language() == "ru" else 220)
         self.setFixedHeight(266)
 
-        self.xray_manager = XrayManager(XRAY_PATH, XRAY_CONFIG_PATH, XRAY_LOG_PATH)
+        self.xray_manager = XrayManager(XRAY_PATH, XRAY_CONFIG_PATH, XRAY_LOG_DIR)
         self.config_manager = ConfigManager(
             USER_AGENT, SUBSCRIPTION_PATH, XRAY_CONFIGS_PATH, XRAY_CONFIG_PATH, TUN_CONFIG_PATH
         )
         self.tun_manager = TunManager(TUN_PATH, TUN_CONFIG_PATH, TUN_LOG_PATH)
         self.tun_enabled: bool = self.tun_manager.is_running()
-        self.proxy_manager = ProxyManager(PROXY_IP_ADDR, PROXY_PORT)
-        self.discord_proxy_manager = DiscordProxyManager()
+        self.proxy_manager = SystemProxyManager(PROXY_IP_ADDR, PROXY_PORT)
+        self.discord_proxy_manager = DiscordProxyManager(
+            DISCORD_DIR, DISCORD_DLLS_DIR, DISCORD_PROXY_DLLS, DISCORD_PROXY_CONFIG, PROXY_IP_ADDR, PROXY_PORT
+        )
         self.tray = Tray(self, self.icon)
 
         self._setup_ui()

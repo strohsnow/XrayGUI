@@ -4,17 +4,23 @@ from pathlib import Path
 
 import psutil
 
-from config import BIN_DIR, DISCORD_DIR, DISCORD_PROXY_CONFIG, DISCORD_PROXY_DLLS, PROXY_IP_ADDR, PROXY_PORT
-
 
 class DiscordProxyManager:
-    def __init__(self) -> None:
-        self.dlls_dir: Path = BIN_DIR
-        self.discord_dir: Path = DISCORD_DIR
-        self.proxy_dlls: list[str] = DISCORD_PROXY_DLLS
-        self.proxy_config: str = DISCORD_PROXY_CONFIG
-        self.proxy_ip_addr: str = PROXY_IP_ADDR
-        self.proxy_port: int = PROXY_PORT
+    def __init__(
+        self,
+        discord_dir: Path,
+        dlls_dir: Path,
+        proxy_dlls: list[str],
+        proxy_config: str,
+        proxy_ip_addr: str,
+        proxy_port: int,
+    ) -> None:
+        self.discord_dir: Path = discord_dir
+        self.dlls_dir: Path = dlls_dir
+        self.proxy_dlls: list[str] = proxy_dlls
+        self.proxy_config: str = proxy_config
+        self.proxy_ip_addr: str = proxy_ip_addr
+        self.proxy_port: int = proxy_port
 
     def is_enabled(self) -> bool:
         app_dir = self._latest_app_dir()
@@ -87,7 +93,8 @@ class DiscordProxyManager:
             except Exception:
                 pass
 
-    def _kill_discord(self) -> str | None:
+    @staticmethod
+    def _kill_discord() -> str | None:
         exe_path: str | None = None
 
         discord_procs: list[psutil.Process] = []

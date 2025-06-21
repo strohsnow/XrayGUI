@@ -5,10 +5,10 @@ import psutil
 
 
 class XrayManager:
-    def __init__(self, executable_path: str, config_path: str, log_dir_path: str) -> None:
+    def __init__(self, executable_path: str, config_path: str, log_dir: str) -> None:
         self.executable_path: str = executable_path
         self.config_path: str = config_path
-        self.log_dir_path: str = log_dir_path
+        self.log_dir: str = log_dir
 
         self._process: psutil.Popen | None = None
 
@@ -25,7 +25,7 @@ class XrayManager:
         try:
             self._process = psutil.Popen(
                 [self.executable_path, "run", "-c", self.config_path],
-                cwd=self.log_dir_path,
+                cwd=self.log_dir,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             return True
