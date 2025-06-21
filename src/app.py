@@ -38,7 +38,7 @@ from core.proxy import ProxyManager
 from core.tun import TunManager
 from core.xray import XrayManager
 from ui.tray import Tray
-from utils.i18n import tr
+from utils.i18n import get_current_language, tr
 from utils.ipc import pass_to_main, start_server
 from utils.update import get_latest_version, is_newer_version
 
@@ -50,7 +50,8 @@ class XrayGUI(QWidget):
 
         self.setWindowIcon(self.icon)
         self.setWindowTitle(APP_NAME)
-        self.setFixedSize(242, 236)
+        self.setFixedWidth(242 if get_current_language() == "ru" else 220)
+        self.setFixedHeight(236)
 
         self.xray_manager = XrayManager(XRAY_PATH, XRAY_CONFIG_PATH, XRAY_LOG_PATH)
         self.config_manager = ConfigManager(

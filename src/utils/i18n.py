@@ -45,7 +45,11 @@ def _detect_system_language() -> str:
     return "en"
 
 
-_current_language: str = "ru"
+_current_language: str = _detect_system_language()
+
+
+def get_current_language() -> str:
+    return _current_language
 
 
 def tr(text: str, **kwargs: str) -> str:
