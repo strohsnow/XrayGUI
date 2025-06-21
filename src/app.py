@@ -169,7 +169,7 @@ class XrayGUI(QWidget):
             if latest_version and is_newer_version(APP_VERSION, latest_version):
                 reply = QMessageBox.question(
                     self,
-                    tr("Update Available"),
+                    tr("Update available"),
                     tr(
                         "A new version {version} is available.\nWould you like to download it now?",
                         version=latest_version,
@@ -183,7 +183,7 @@ class XrayGUI(QWidget):
 
     def import_subscription(self, url: str | None = None) -> None:
         if not url:
-            url, ok = QInputDialog.getText(self, tr("Import Subscription"), tr("Enter subscription URL:"))
+            url, ok = QInputDialog.getText(self, tr("Import subscription"), tr("Enter subscription URL:"))
             if not ok or not url:
                 return
 

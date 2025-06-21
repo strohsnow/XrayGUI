@@ -26,7 +26,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Failed to update subscription:\n{error}": "Не удалось обновить подписку:\n{error}",
         "Import a subscription first": "Сначала импортируйте подписку",
         "Select a server first": "Сначала выберите сервер",
-        "Update Available": "Доступно обновление",
+        "Update available": "Доступно обновление",
         "A new version {version} is available.\nWould you like to download it now?": "Доступна новая версия {version}.\nХотите скачать её сейчас?",
         "Success": "Успех",
         "Error": "Ошибка",
