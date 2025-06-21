@@ -24,6 +24,7 @@ class Tray(QObject):
         self.toggle_xray_action = QAction(self.parent)
         self.toggle_tun_action = QAction(self.parent)
         self.toggle_system_proxy_action = QAction(self.parent)
+        self.toggle_discord_proxy_action = QAction(self.parent)
 
         self.server_menu = QMenu(tr("Select server"), self.parent)
         self.server_actions = []
@@ -41,6 +42,7 @@ class Tray(QObject):
         tray_menu.addAction(self.toggle_xray_action)
         tray_menu.addAction(self.toggle_tun_action)
         tray_menu.addAction(self.toggle_system_proxy_action)
+        tray_menu.addAction(self.toggle_discord_proxy_action)
         tray_menu.addSeparator()
 
         tray_menu.addMenu(self.server_menu)
@@ -90,3 +92,6 @@ class Tray(QObject):
 
     def update_system_proxy_action(self, enabled: bool) -> None:
         self.toggle_system_proxy_action.setText(f"{tr('Disable') if enabled else tr('Enable')} {tr('system proxy')}")
+
+    def update_discord_proxy_action(self, enabled: bool) -> None:
+        self.toggle_discord_proxy_action.setText(f"{tr('Disable') if enabled else tr('Enable')} {tr('Discord proxy')}")

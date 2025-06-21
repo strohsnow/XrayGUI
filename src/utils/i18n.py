@@ -17,6 +17,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Failed to start TUN": "Не удалось запустить TUN",
         "Disable": "Отключить",
         "system proxy": "системный прокси",
+        "Discord proxy": "Discord прокси",
+        "Failed to enable Discord proxy": "Не удалось включить Discord прокси",
         "Import subscription": "Импортировать подписку",
         "Enter subscription URL:": "Введите URL подписки:",
         "Subscription imported successfully": "Подписка успешно импортирована",

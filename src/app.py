@@ -34,6 +34,7 @@ from config import (
     XRAY_PATH,
 )
 from core.config import ConfigManager
+from core.discord_proxy import DiscordProxyManager
 from core.proxy import ProxyManager
 from core.tun import TunManager
 from core.xray import XrayManager
@@ -51,7 +52,7 @@ class XrayGUI(QWidget):
         self.setWindowIcon(self.icon)
         self.setWindowTitle(APP_NAME)
         self.setFixedWidth(242 if get_current_language() == "ru" else 220)
-        self.setFixedHeight(236)
+        self.setFixedHeight(266)
 
         self.xray_manager = XrayManager(XRAY_PATH, XRAY_CONFIG_PATH, XRAY_LOG_PATH)
         self.config_manager = ConfigManager(
@@ -60,6 +61,7 @@ class XrayGUI(QWidget):
         self.tun_manager = TunManager(TUN_PATH, TUN_CONFIG_PATH, TUN_LOG_PATH)
         self.tun_enabled: bool = self.tun_manager.is_running()
         self.proxy_manager = ProxyManager(PROXY_IP_ADDR, PROXY_PORT)
+        self.discord_proxy_manager = DiscordProxyManager()
         self.tray = Tray(self, self.icon)
 
         self._setup_ui()
@@ -68,6 +70,7 @@ class XrayGUI(QWidget):
         self._update_server_info()
         self._update_tun_info()
         self._update_system_proxy_info()
+        self._update_discord_proxy_info()
 
         self._check_updates()
 
@@ -105,6 +108,10 @@ class XrayGUI(QWidget):
         self.toggle_system_proxy_button.clicked.connect(self.toggle_system_proxy)
         buttons_layout.addWidget(self.toggle_system_proxy_button)
 
+        self.toggle_discord_proxy_button = QPushButton()
+        self.toggle_discord_proxy_button.clicked.connect(self.toggle_discord_proxy)
+        buttons_layout.addWidget(self.toggle_discord_proxy_button)
+
         separator2 = QFrame()
         separator2.setFrameShape(QFrame.HLine)
         separator2.setFrameShadow(QFrame.Sunken)
@@ -123,6 +130,7 @@ class XrayGUI(QWidget):
         self.tray.toggle_xray_action.triggered.connect(self.toggle_xray)
         self.tray.toggle_tun_action.triggered.connect(self.toggle_tun)
         self.tray.toggle_system_proxy_action.triggered.connect(self.toggle_system_proxy)
+        self.tray.toggle_discord_proxy_action.triggered.connect(self.toggle_discord_proxy)
 
     def display_message(self, title: str, message: str) -> None:
         QMessageBox.information(self, title, message)
@@ -163,6 +171,11 @@ class XrayGUI(QWidget):
         enabled = self.proxy_manager.server_set()
         self.toggle_system_proxy_button.setText(f"{tr('Disable') if enabled else tr('Enable')} {tr('system proxy')}")
         self.tray.update_system_proxy_action(enabled)
+
+    def _update_discord_proxy_info(self) -> None:
+        enabled = self.discord_proxy_manager.is_enabled()
+        self.toggle_discord_proxy_button.setText(f"{tr('Disable') if enabled else tr('Enable')} {tr('Discord proxy')}")
+        self.tray.update_discord_proxy_action(enabled)
 
     def _check_updates(self) -> None:
         try:
@@ -267,6 +280,15 @@ class XrayGUI(QWidget):
                 self.proxy_manager.set_enable(True)
 
         self._update_system_proxy_info()
+
+    def toggle_discord_proxy(self) -> None:
+        if self.discord_proxy_manager.is_enabled():
+            self.discord_proxy_manager.disable()
+        else:
+            if not self.discord_proxy_manager.enable():
+                self.display_error(tr("Error"), tr("Failed to enable Discord proxy"))
+
+        self._update_discord_proxy_info()
 
     def toggle_tun(self) -> None:
         if self.tun_enabled:
