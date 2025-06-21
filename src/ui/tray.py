@@ -22,12 +22,12 @@ class Tray(QObject):
         self.hide_action = QAction(tr("Hide"), self.parent, triggered=self.parent.hide)
 
         self.toggle_xray_action = QAction(self.parent)
+        self.server_menu = QMenu(tr("Select server"), self.parent)
+        self.server_actions = []
+
         self.toggle_tun_action = QAction(self.parent)
         self.toggle_system_proxy_action = QAction(self.parent)
         self.toggle_discord_proxy_action = QAction(self.parent)
-
-        self.server_menu = QMenu(tr("Select server"), self.parent)
-        self.server_actions = []
 
         self._setup_menu()
         self.tray.show()
@@ -40,12 +40,14 @@ class Tray(QObject):
         tray_menu.addSeparator()
 
         tray_menu.addAction(self.toggle_xray_action)
+        tray_menu.addMenu(self.server_menu)
+        tray_menu.addSeparator()
+
         tray_menu.addAction(self.toggle_tun_action)
         tray_menu.addAction(self.toggle_system_proxy_action)
         tray_menu.addAction(self.toggle_discord_proxy_action)
         tray_menu.addSeparator()
 
-        tray_menu.addMenu(self.server_menu)
         tray_menu.addSeparator()
 
         action_quit = QAction(tr("Quit"), self.parent, triggered=self.parent._quit)
