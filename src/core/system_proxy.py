@@ -10,7 +10,7 @@ class SystemProxyManager:
         self.port: int = port
 
     @staticmethod
-    def _refresh(self) -> None:
+    def _refresh() -> None:
         ctypes.windll.Wininet.InternetSetOptionW(0, 37, 0, 0)
         ctypes.windll.Wininet.InternetSetOptionW(0, 39, 0, 0)
 
@@ -19,7 +19,7 @@ class SystemProxyManager:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.KEY, 0, winreg.KEY_ALL_ACCESS) as key:
             winreg.SetValueEx(key, "ProxyServer", 0, winreg.REG_SZ, proxy_server)
 
-        self._refresh()
+        SystemProxyManager._refresh()
 
     def delete_server(self) -> None:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.KEY, 0, winreg.KEY_ALL_ACCESS) as key:
@@ -28,7 +28,7 @@ class SystemProxyManager:
             except FileNotFoundError:
                 pass
 
-        self._refresh()
+        SystemProxyManager._refresh()
 
     def set_enable(self, enable: bool) -> None:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.KEY, 0, winreg.KEY_ALL_ACCESS) as key:
@@ -36,7 +36,7 @@ class SystemProxyManager:
                 return
             winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, enable)
 
-        self._refresh()
+        SystemProxyManager._refresh()
 
     def server_set(self) -> bool:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.KEY) as key:
