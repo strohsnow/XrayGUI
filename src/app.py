@@ -64,7 +64,7 @@ class XrayGUI(QWidget):
         )
         self.tun_manager = TunManager(TUN_PATH, TUN_CONFIG_PATH, TUN_LOG_PATH)
         self.tun_enabled: bool = self.tun_manager.is_running()
-        self.proxy_manager = SystemProxyManager(PROXY_IP_ADDR, PROXY_PORT)
+        self.system_proxy_manager = SystemProxyManager(PROXY_IP_ADDR, PROXY_PORT)
         self.discord_proxy_manager = DiscordProxyManager(
             DISCORD_DIR, DISCORD_DLLS_DIR, DISCORD_PROXY_DLLS, DISCORD_PROXY_CONFIG, PROXY_IP_ADDR, PROXY_PORT
         )
@@ -144,6 +144,24 @@ class XrayGUI(QWidget):
     def display_error(self, title: str, message: str) -> None:
         QMessageBox.critical(self, title, message)
 
+    def _check_updates(self) -> None:
+        try:
+            latest_version, download_url = get_latest_version()
+            if latest_version and is_newer_version(APP_VERSION, latest_version):
+                reply = QMessageBox.question(
+                    self,
+                    tr("Update available"),
+                    tr(
+                        "A new version {version} is available.\nWould you like to download it now?",
+                        version=latest_version,
+                    ),
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    webbrowser.open(download_url)
+        except Exception:
+            pass
+
     def _on_ipc(self) -> None:
         self.show()
         socket = self.sender().nextPendingConnection()
@@ -174,7 +192,7 @@ class XrayGUI(QWidget):
         self.tray.update_tun_action(self.tun_enabled)
 
     def _update_system_proxy_info(self) -> None:
-        enabled = self.proxy_manager.server_set()
+        enabled = self.system_proxy_manager.server_set()
         self.toggle_system_proxy_button.setText(f"{tr('Disable') if enabled else tr('Enable')} {tr('system proxy')}")
         self.tray.update_system_proxy_action(enabled)
 
@@ -183,23 +201,85 @@ class XrayGUI(QWidget):
         self.toggle_discord_proxy_button.setText(f"{tr('Disable') if enabled else tr('Enable')} {tr('Discord proxy')}")
         self.tray.update_discord_proxy_action(enabled)
 
-    def _check_updates(self) -> None:
-        try:
-            latest_version, download_url = get_latest_version()
-            if latest_version and is_newer_version(APP_VERSION, latest_version):
-                reply = QMessageBox.question(
-                    self,
-                    tr("Update available"),
-                    tr(
-                        "A new version {version} is available.\nWould you like to download it now?",
-                        version=latest_version,
-                    ),
-                    QMessageBox.Yes | QMessageBox.No,
-                )
-                if reply == QMessageBox.Yes:
-                    webbrowser.open(download_url)
-        except Exception:
-            pass
+    def toggle_xray(self) -> None:
+        if self.xray_manager.is_running():
+            self.xray_manager.stop()
+            self.tun_manager.stop()
+            self.system_proxy_manager.set_enable(False)
+        else:
+            if not self.config_manager.current_remark:
+                self.display_error(tr("Error"), tr("Select a server first"))
+                return
+
+            if self.xray_manager.start():
+                if self.tun_enabled:
+                    if not self.tun_manager.start():
+                        self.tun_enabled = False
+                        self.display_error(tr("Error"), tr("Failed to start TUN"))
+                if self.system_proxy_manager.server_set():
+                    self.system_proxy_manager.set_enable(True)
+            else:
+                self.display_error(tr("Error"), tr("Failed to start VPN"))
+                return
+
+        self._update_status_info()
+        self._update_tun_info()
+        self._update_system_proxy_info()
+
+    def _select_server(self, remark: str) -> None:
+        if not self.config_manager.select_config(remark):
+            return
+
+        self._update_server_info()
+        if self.xray_manager.is_running():
+            self.toggle_xray()
+            self.toggle_xray()
+
+    def select_server(self) -> None:
+        if not self.config_manager.xray_configs:
+            self.display_error(tr("Error"), tr("Import a subscription first"))
+            return
+
+        remarks = [server.get("remarks", "No remark") for server in self.config_manager.xray_configs]
+        remark, ok = QInputDialog.getItem(self, tr("Select server"), tr("Choose a server:"), remarks, 0, False)
+        if not ok or not remark:
+            return
+
+        self._select_server(remark)
+
+    def toggle_tun(self) -> None:
+        if self.tun_enabled:
+            self.tun_enabled = False
+            self.tun_manager.stop()
+        elif self.xray_manager.is_running():
+            if not self.tun_manager.start():
+                self.display_error(tr("Error"), tr("Failed to start TUN"))
+            else:
+                self.tun_enabled = True
+        else:
+            self.tun_enabled = True
+
+        self._update_tun_info()
+
+    def toggle_system_proxy(self) -> None:
+        if self.system_proxy_manager.server_set():
+            self.system_proxy_manager.delete_server()
+            self.system_proxy_manager.set_enable(False)
+        else:
+            self.system_proxy_manager.set_server()
+            if self.xray_manager.is_running():
+                self.system_proxy_manager.set_enable(True)
+
+        self._update_system_proxy_info()
+
+    def toggle_discord_proxy(self) -> None:
+        if self.discord_proxy_manager.is_enabled():
+            self.discord_proxy_manager.disable()
+        else:
+            if not self.discord_proxy_manager.enable():
+                self.display_error(tr("Error"), tr("Failed to enable Discord proxy"))
+
+        self._update_discord_proxy_info()
 
     def import_subscription(self, url: str | None = None) -> None:
         if not url:
@@ -230,90 +310,10 @@ class XrayGUI(QWidget):
         self._update_server_info()
         self.display_message(tr("Success"), tr("Subscription updated successfully"))
 
-    def _select_server(self, remark: str) -> None:
-        if not self.config_manager.select_config(remark):
-            return
-
-        self._update_server_info()
-        if self.xray_manager.is_running():
-            self.toggle_xray()
-            self.toggle_xray()
-
-    def select_server(self) -> None:
-        if not self.config_manager.xray_configs:
-            self.display_error(tr("Error"), tr("Import a subscription first"))
-            return
-
-        remarks = [server.get("remarks", "No remark") for server in self.config_manager.xray_configs]
-        remark, ok = QInputDialog.getItem(self, tr("Select server"), tr("Choose a server:"), remarks, 0, False)
-        if not ok or not remark:
-            return
-
-        self._select_server(remark)
-
-    def toggle_xray(self) -> None:
-        if self.xray_manager.is_running():
-            self.xray_manager.stop()
-            self.tun_manager.stop()
-            self.proxy_manager.set_enable(False)
-        else:
-            if not self.config_manager.current_remark:
-                self.display_error(tr("Error"), tr("Select a server first"))
-                return
-
-            if self.xray_manager.start():
-                if self.proxy_manager.server_set():
-                    self.proxy_manager.set_enable(True)
-                if self.tun_enabled:
-                    if not self.tun_manager.start():
-                        self.tun_enabled = False
-                        self.display_error(tr("Error"), tr("Failed to start TUN"))
-            else:
-                self.display_error(tr("Error"), tr("Failed to start VPN"))
-                return
-
-        self._update_status_info()
-        self._update_system_proxy_info()
-        self._update_tun_info()
-
-    def toggle_system_proxy(self) -> None:
-        if self.proxy_manager.server_set():
-            self.proxy_manager.delete_server()
-            self.proxy_manager.set_enable(False)
-        else:
-            self.proxy_manager.set_server()
-            if self.xray_manager.is_running():
-                self.proxy_manager.set_enable(True)
-
-        self._update_system_proxy_info()
-
-    def toggle_discord_proxy(self) -> None:
-        if self.discord_proxy_manager.is_enabled():
-            self.discord_proxy_manager.disable()
-        else:
-            if not self.discord_proxy_manager.enable():
-                self.display_error(tr("Error"), tr("Failed to enable Discord proxy"))
-
-        self._update_discord_proxy_info()
-
-    def toggle_tun(self) -> None:
-        if self.tun_enabled:
-            self.tun_enabled = False
-            self.tun_manager.stop()
-        elif self.xray_manager.is_running():
-            if not self.tun_manager.start():
-                self.display_error(tr("Error"), tr("Failed to start TUN"))
-            else:
-                self.tun_enabled = True
-        else:
-            self.tun_enabled = True
-
-        self._update_tun_info()
-
     def _quit(self) -> None:
         self.xray_manager.stop()
-        self.proxy_manager.set_enable(False)
         self.tun_manager.stop()
+        self.system_proxy_manager.set_enable(False)
         QApplication.quit()
 
     def showEvent(self, event: QEvent) -> None:
