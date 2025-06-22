@@ -211,16 +211,17 @@ class XrayGUI(QWidget):
                 self.display_error(tr("Error"), tr("Select a server first"))
                 return
 
-            if self.xray_manager.start():
-                if self.tun_enabled:
-                    if not self.tun_manager.start():
-                        self.tun_enabled = False
-                        self.display_error(tr("Error"), tr("Failed to start TUN"))
-                if self.system_proxy_manager.server_set():
-                    self.system_proxy_manager.set_enable(True)
-            else:
+            if not self.xray_manager.start():
                 self.display_error(tr("Error"), tr("Failed to start VPN"))
                 return
+
+            if self.tun_enabled:
+                if not self.tun_manager.start():
+                    self.tun_enabled = False
+                    self.display_error(tr("Error"), tr("Failed to start TUN"))
+
+            if self.system_proxy_manager.server_set():
+                self.system_proxy_manager.set_enable(True)
 
         self._update_status_info()
         self._update_tun_info()
@@ -254,11 +255,9 @@ class XrayGUI(QWidget):
         elif self.xray_manager.is_running():
             if not self.tun_manager.start():
                 self.display_error(tr("Error"), tr("Failed to start TUN"))
-            else:
-                self.tun_enabled = True
-        else:
-            self.tun_enabled = True
+                return
 
+        self.tun_enabled = True
         self._update_tun_info()
 
     def toggle_system_proxy(self) -> None:
