@@ -12,9 +12,9 @@ def get_latest_version() -> tuple[str | None, str]:
     except Exception:
         return None, GITHUB_RELEASES_PAGE
 
-    tag = data.get("tag_name") or data.get("name")
+    tag = data.get("tag_name")
     if tag and tag.startswith("v"):
-        tag = tag[1:]
+        tag = tag.removeprefix("v")
 
     download_url = GITHUB_RELEASES_PAGE
     for asset in data.get("assets", []):
