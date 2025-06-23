@@ -78,6 +78,9 @@ class XrayGUI(QWidget):
         self._update_system_proxy_info()
         self._update_discord_proxy_info()
 
+        if self.config_manager.current_remark and not self.xray_manager.is_running():
+            self.toggle_xray()
+
         self._check_updates()
 
         server.newConnection.connect(self._on_ipc)
@@ -347,10 +350,14 @@ if __name__ == "__main__":
 
     server = start_server(APP_NAME)
     window = XrayGUI(server)
-    window.show()
 
-    if len(sys.argv) > 1:
-        arg = sys.argv[1]
+    if any(arg.lower() == "/minimized" for arg in sys.argv[1:]):
+        window.hide()
+        window.tray.update_action_visibility()
+    else:
+        window.show()
+
+    for arg in sys.argv[1:]:
         if arg.startswith("happ://add/"):
             window.import_subscription(arg.removeprefix("happ://add/"))
 
