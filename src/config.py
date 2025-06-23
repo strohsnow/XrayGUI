@@ -27,7 +27,7 @@ TUN_CONFIG_PATH = str(CONFIG_DIR / "config.yaml")
 TUN_LOG_PATH = str(LOG_DIR / "tun.log")
 
 APP_NAME = "XrayGUI"
-APP_VERSION = "1.8"
+APP_VERSION = "2.0.0"
 USER_AGENT = f"Happ/{APP_NAME}/{APP_VERSION}"
 
 PROXY_IP_ADDR = "127.0.0.1"
